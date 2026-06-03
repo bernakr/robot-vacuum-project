@@ -52,6 +52,10 @@ public class GridController {
     }
 
     public void handleCellClick(Position position) {
+        if (editMode == EditMode.OBSTACLE && simulationController.rotateFurnitureAt(position)) {
+            selectedPosition = null;
+            return;
+        }
         if (position.equals(selectedPosition)) {
             clearSelection();
             return;
@@ -80,5 +84,15 @@ public class GridController {
         Position target = selectedPosition;
         selectedPosition = null;
         simulationController.addObstacle(target);
+    }
+
+    public boolean moveFurniture(Position source, Position target) {
+        selectedPosition = null;
+        return simulationController.moveFurniture(source, target);
+    }
+
+    public boolean moveDirt(Position source, Position target) {
+        selectedPosition = null;
+        return simulationController.moveDirt(source, target);
     }
 }

@@ -70,7 +70,8 @@
 .label,
 .radio-button,
 .toggle-button,
-.button {
+.button,
+.menu-button {
     -fx-text-fill: #eef3fb;
 }
 
@@ -81,7 +82,8 @@
 }
 
 .toggle-button,
-.button {
+.button,
+.menu-button {
     -fx-background-color: #2b3a50;
     -fx-background-radius: 7;
     -fx-border-color: #3a4d66;
@@ -98,7 +100,8 @@
 }
 
 .button:hover,
-.toggle-button:hover {
+.toggle-button:hover,
+.menu-button:hover {
     -fx-background-color: #344864;
 }
 
@@ -131,6 +134,63 @@
     -fx-border-color: #36e879;
     -fx-font-size: 14px;
     -fx-padding: 7 11;
+}
+
+.furniture-control {
+    -fx-alignment: center;
+}
+
+.furniture-control .tool-success {
+    -fx-min-height: 38;
+    -fx-pref-height: 38;
+}
+
+.furniture-control .toggle-button {
+    -fx-background-radius: 7 0 0 7;
+    -fx-border-radius: 7 0 0 7;
+    -fx-border-width: 1 0 1 1;
+}
+
+.furniture-picker {
+    -fx-background-radius: 0 7 7 0;
+    -fx-border-radius: 0 7 7 0;
+    -fx-border-width: 1 1 1 1;
+    -fx-border-color: #36e879 #36e879 #36e879 rgba(223, 255, 232, 0.42);
+    -fx-padding: 7 6;
+}
+
+.furniture-picker .label {
+    -fx-padding: 0;
+}
+
+.furniture-picker .arrow-button {
+    -fx-padding: 0 0 0 2;
+}
+
+.furniture-picker .arrow {
+    -fx-background-color: #f0fff6;
+}
+
+.context-menu {
+    -fx-background-color: #0a2036;
+    -fx-border-color: #24506d;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 4;
+}
+
+.menu-item {
+    -fx-background-radius: 6;
+    -fx-padding: 7 12;
+}
+
+.menu-item .label {
+    -fx-text-fill: #eef7ff;
+    -fx-font-weight: 700;
+}
+
+.menu-item:focused {
+    -fx-background-color: #1689ff;
 }
 
 .control-start {

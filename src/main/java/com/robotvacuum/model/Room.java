@@ -112,6 +112,35 @@ public class Room {
         return Optional.empty();
     }
 
+    public Optional<String> moveDirt(
+            Position source,
+            Position target,
+            Position robotPosition,
+            Set<Position> cleanedPositions
+    ) {
+        if (!isInside(source) || !isInside(target)) {
+            return Optional.of("Kir grid dışına taşınamaz.");
+        }
+        if (source.equals(target)) {
+            return Optional.empty();
+        }
+
+        Cell sourceCell = getCell(source);
+        Dirt dirt = sourceCell.getDirt();
+        if (dirt == null) {
+            return Optional.of("Taşınacak kir bulunamadı.");
+        }
+
+        sourceCell.setDirt(null);
+        Optional<String> error = validateDirtPlacement(target, robotPosition, cleanedPositions);
+        if (error.isPresent()) {
+            sourceCell.setDirt(dirt);
+            return error;
+        }
+        getCell(target).setDirt(dirt);
+        return Optional.empty();
+    }
+
     public Optional<String> addObstacle(String name, Set<Position> positions, Position robotPosition) {
         return addObstacle(name, positions, robotPosition, Set.of());
     }
@@ -140,6 +169,15 @@ public class Room {
             Position robotPosition,
             Set<Position> cleanedPositions
     ) {
+        return validateObstaclePlacement(positions, robotPosition, cleanedPositions, null);
+    }
+
+    public Optional<String> validateObstaclePlacement(
+            Set<Position> positions,
+            Position robotPosition,
+            Set<Position> cleanedPositions,
+            Obstacle ignoredObstacle
+    ) {
         for (Position position : positions) {
             if (!isInside(position)) {
                 return Optional.of("Grid dışına mobilya eklenemez.");
@@ -154,7 +192,7 @@ public class Room {
             if (cell.isChargingStation()) {
                 return Optional.of("Şarj istasyonuna mobilya eklenemez.");
             }
-            if (cell.hasObstacle()) {
+            if (cell.hasObstacle() && cell.getObstacle() != ignoredObstacle) {
                 return Optional.of("Bu hücrede zaten mobilya var.");
             }
             if (cell.hasDirt()) {
@@ -162,6 +200,24 @@ public class Room {
             }
         }
         return Optional.empty();
+    }
+
+    public Optional<Obstacle> findObstacleAt(Position position) {
+        if (!isInside(position)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(getCell(position).getObstacle());
+    }
+
+    public void replaceObstaclePositions(Obstacle obstacle, Set<Position> newPositions, int rotationDegrees) {
+        for (Position position : obstacle.getPositions()) {
+            getCell(position).setObstacle(null);
+        }
+        obstacle.setPositions(newPositions);
+        obstacle.setRotationDegrees(rotationDegrees);
+        for (Position position : newPositions) {
+            getCell(position).setObstacle(obstacle);
+        }
     }
 
     public void removeObstacleAt(Position position) {

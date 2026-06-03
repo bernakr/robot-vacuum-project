@@ -5,6 +5,7 @@ import com.robotvacuum.config.SimulationConfig;
 import com.robotvacuum.model.Battery;
 import com.robotvacuum.model.Dirt;
 import com.robotvacuum.model.FurnitureTemplate;
+import com.robotvacuum.model.Obstacle;
 import com.robotvacuum.model.Position;
 import com.robotvacuum.model.Robot;
 import com.robotvacuum.model.Room;
@@ -21,6 +22,7 @@ import javafx.util.Duration;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
@@ -28,18 +30,13 @@ import java.util.Set;
 
 public class SimulationController {
     private static final List<FurnitureTemplate> FURNITURE_TEMPLATES = List.of(
-            new FurnitureTemplate("Koltuk", 2, 4),
+            new FurnitureTemplate("Çift Koltuk", 2, 4),
             new FurnitureTemplate("Tekli Koltuk", 2, 2),
             new FurnitureTemplate("Orta Masa", 2, 3),
-            new FurnitureTemplate("Orta Masa", 2, 4),
             new FurnitureTemplate("Yemek Masası", 3, 3),
-            new FurnitureTemplate("Çalışma Masası", 3, 3),
             new FurnitureTemplate("Konsol", 1, 4),
-            new FurnitureTemplate("Konsol", 2, 4),
             new FurnitureTemplate("Dolap", 2, 2),
-            new FurnitureTemplate("Dolap", 2, 3),
             new FurnitureTemplate("Kitaplık", 3, 1),
-            new FurnitureTemplate("Kitaplık", 3, 2),
             new FurnitureTemplate("Bitki", 1, 1)
     );
 
@@ -62,6 +59,8 @@ public class SimulationController {
     private String lastBatteryEvent = "Hazır";
     private int movementStepsSinceBatteryCost;
     private boolean cleaningCompleted;
+    private FurnitureTemplate selectedFurnitureTemplate;
+    private FurnitureTemplate lastRandomFurnitureTemplate;
 
     public SimulationController() {
         resetModel();
@@ -133,7 +132,11 @@ public class SimulationController {
     }
 
     public void cellSelected(Position position) {
-        sendMessage("Seçili hücre: (" + position.row() + ", " + position.col() + "). Kir eklemek için Kir Ekle butonuna bas.");
+        if (gridController.getEditMode() == GridController.EditMode.OBSTACLE) {
+            sendMessage("Seçili hücre: (" + position.row() + ", " + position.col() + "). Mobilya eklemek için Mobilya Ekle butonuna bas.");
+        } else {
+            sendMessage("Seçili hücre: (" + position.row() + ", " + position.col() + "). Kir eklemek için Kir Ekle butonuna bas.");
+        }
         notifyChange();
     }
 
@@ -180,17 +183,13 @@ public class SimulationController {
     }
 
     public void addObstacle(Position position) {
-        if (robot.getState() == SimulationState.RUNNING
-                || robot.getState() == SimulationState.CLEANING
-                || robot.getState() == SimulationState.RETURNING_TO_CHARGER
-                || robot.getState() == SimulationState.RETURNING_TO_WORK
-                || robot.getState() == SimulationState.CHARGING) {
+        if (isFurnitureEditingLocked()) {
             sendMessage("Simülasyon çalışırken mobilya eklenemez.");
             notifyChange();
             return;
         }
 
-        List<FurnitureTemplate> templates = shuffledFurnitureTemplates();
+        List<FurnitureTemplate> templates = furniturePlacementOrder();
         for (FurnitureTemplate template : templates) {
             if (placeFurniture(template, position)) {
                 return;
@@ -202,25 +201,31 @@ public class SimulationController {
     }
 
     public void addRandomFurniture() {
-        if (robot.getState() == SimulationState.RUNNING
-                || robot.getState() == SimulationState.CLEANING
-                || robot.getState() == SimulationState.RETURNING_TO_CHARGER
-                || robot.getState() == SimulationState.RETURNING_TO_WORK
-                || robot.getState() == SimulationState.CHARGING) {
+        if (isFurnitureEditingLocked()) {
             sendMessage("Simülasyon çalışırken mobilya eklenemez.");
             notifyChange();
             return;
         }
 
+        List<FurnitureTemplate> templates = furniturePlacementOrder();
+        for (FurnitureTemplate template : templates) {
+            if (placeFurnitureAtRandomValidAnchor(template)) {
+                return;
+            }
+        }
+
+        sendMessage("Mobilya için uygun boş alan bulunamadı.");
+        notifyChange();
+    }
+
+    private boolean placeFurnitureAtRandomValidAnchor(FurnitureTemplate template) {
         List<FurniturePlacement> placements = new ArrayList<>();
-        for (FurnitureTemplate template : FURNITURE_TEMPLATES) {
-            for (int row = 0; row < room.getRows(); row++) {
-                for (int col = 0; col < room.getCols(); col++) {
-                    Position anchor = new Position(row, col);
-                    Set<Position> positions = template.positionsAt(anchor);
-                    if (room.validateObstaclePlacement(positions, robot.getPosition(), robot.getCleanedPositions()).isEmpty()) {
-                        placements.add(new FurniturePlacement(template, anchor));
-                    }
+        for (int row = 0; row < room.getRows(); row++) {
+            for (int col = 0; col < room.getCols(); col++) {
+                Position anchor = new Position(row, col);
+                Set<Position> positions = template.positionsAt(anchor);
+                if (room.validateObstaclePlacement(positions, robot.getPosition(), robot.getCleanedPositions()).isEmpty()) {
+                    placements.add(new FurniturePlacement(template, anchor));
                 }
             }
         }
@@ -228,12 +233,10 @@ public class SimulationController {
 
         for (FurniturePlacement placement : placements) {
             if (placeFurniture(placement.template(), placement.anchor())) {
-                return;
+                return true;
             }
         }
-
-        sendMessage("Mobilya için uygun boş alan bulunamadı.");
-        notifyChange();
+        return false;
     }
 
     private boolean placeFurniture(FurnitureTemplate template, Position anchor) {
@@ -249,18 +252,171 @@ public class SimulationController {
             return false;
         }
 
+        if (selectedFurnitureTemplate == null) {
+            lastRandomFurnitureTemplate = template;
+        }
         sendMessage(template.name() + " eklendi: (" + anchor.row() + ", " + anchor.col() + ")");
         notifyChange();
         return true;
     }
 
-    private List<FurnitureTemplate> shuffledFurnitureTemplates() {
+    private List<FurnitureTemplate> furniturePlacementOrder() {
+        if (selectedFurnitureTemplate != null) {
+            return List.of(selectedFurnitureTemplate);
+        }
+
         List<FurnitureTemplate> templates = new ArrayList<>(FURNITURE_TEMPLATES);
+        if (templates.size() > 1 && lastRandomFurnitureTemplate != null) {
+            templates.remove(lastRandomFurnitureTemplate);
+        }
         Collections.shuffle(templates, furnitureRandom);
+        if (lastRandomFurnitureTemplate != null) {
+            templates.add(lastRandomFurnitureTemplate);
+        }
         return templates;
     }
 
+    private boolean isFurnitureEditingLocked() {
+        return robot.getState() == SimulationState.RUNNING
+                || robot.getState() == SimulationState.CLEANING
+                || robot.getState() == SimulationState.RETURNING_TO_CHARGER
+                || robot.getState() == SimulationState.RETURNING_TO_WORK
+                || robot.getState() == SimulationState.CHARGING;
+    }
+
     private record FurniturePlacement(FurnitureTemplate template, Position anchor) {
+    }
+
+    public List<FurnitureTemplate> getFurnitureTemplates() {
+        return FURNITURE_TEMPLATES;
+    }
+
+    public FurnitureTemplate getSelectedFurnitureTemplate() {
+        return selectedFurnitureTemplate;
+    }
+
+    public void setSelectedFurnitureTemplate(FurnitureTemplate selectedFurnitureTemplate) {
+        this.selectedFurnitureTemplate = selectedFurnitureTemplate;
+        if (selectedFurnitureTemplate == null) {
+            sendMessage("Mobilya türü temizlendi. Mobilya Ekle dengeli rastgele ekleyecek.");
+        } else {
+            sendMessage("Mobilya türü seçildi: " + selectedFurnitureTemplate.name());
+        }
+        notifyChange();
+    }
+
+    public boolean rotateFurnitureAt(Position position) {
+        Optional<Obstacle> obstacle = room.findObstacleAt(position);
+        if (obstacle.isEmpty()) {
+            return false;
+        }
+        if (isFurnitureEditingLocked()) {
+            sendMessage("Simülasyon çalışırken mobilya döndürülemez.");
+            notifyChange();
+            return true;
+        }
+
+        Obstacle target = obstacle.get();
+        Set<Position> currentPositions = target.getPositions();
+        int minRow = currentPositions.stream().map(Position::row).min(Integer::compareTo).orElse(position.row());
+        int minCol = currentPositions.stream().map(Position::col).min(Integer::compareTo).orElse(position.col());
+        int maxRow = currentPositions.stream().map(Position::row).max(Integer::compareTo).orElse(position.row());
+        int maxCol = currentPositions.stream().map(Position::col).max(Integer::compareTo).orElse(position.col());
+        int currentRows = maxRow - minRow + 1;
+        int currentCols = maxCol - minCol + 1;
+        FurnitureTemplate rotatedTemplate = new FurnitureTemplate(target.getName(), currentCols, currentRows);
+        Set<Position> rotatedPositions = rotatedTemplate.positionsAt(new Position(minRow, minCol));
+
+        Optional<String> error = room.validateObstaclePlacement(
+                rotatedPositions,
+                robot.getPosition(),
+                robot.getCleanedPositions(),
+                target
+        );
+        if (error.isPresent()) {
+            sendMessage("Mobilya bu yönde döndürülemez: " + error.get());
+            notifyChange();
+            return true;
+        }
+
+        int previousRotation = target.getRotationDegrees();
+        room.replaceObstaclePositions(target, rotatedPositions, previousRotation + 90);
+        if (pathfindingService.findPathToChargingStation(room, robot.getPosition()).isEmpty()) {
+            room.replaceObstaclePositions(target, currentPositions, previousRotation);
+            sendMessage("Mobilya bu yönde döndürülemez: şarj istasyonu yolu kapanıyor.");
+            notifyChange();
+            return true;
+        }
+
+        sendMessage(target.getName() + " döndürüldü.");
+        notifyChange();
+        return true;
+    }
+
+    public boolean moveFurniture(Position grabbedCell, Position targetCell) {
+        Optional<Obstacle> obstacle = room.findObstacleAt(grabbedCell);
+        if (obstacle.isEmpty()) {
+            return false;
+        }
+        if (isFurnitureEditingLocked()) {
+            sendMessage("Simülasyon çalışırken mobilya taşınamaz.");
+            notifyChange();
+            return true;
+        }
+
+        Obstacle target = obstacle.get();
+        Set<Position> currentPositions = target.getPositions();
+        int rowDelta = targetCell.row() - grabbedCell.row();
+        int colDelta = targetCell.col() - grabbedCell.col();
+        Set<Position> movedPositions = new LinkedHashSet<>();
+        for (Position position : currentPositions) {
+            movedPositions.add(new Position(position.row() + rowDelta, position.col() + colDelta));
+        }
+
+        Optional<String> error = room.validateObstaclePlacement(
+                movedPositions,
+                robot.getPosition(),
+                robot.getCleanedPositions(),
+                target
+        );
+        if (error.isPresent()) {
+            sendMessage("Mobilya taşınamadı: " + error.get());
+            notifyChange();
+            return true;
+        }
+
+        int rotation = target.getRotationDegrees();
+        room.replaceObstaclePositions(target, movedPositions, rotation);
+        if (pathfindingService.findPathToChargingStation(room, robot.getPosition()).isEmpty()) {
+            room.replaceObstaclePositions(target, currentPositions, rotation);
+            sendMessage("Mobilya taşınamadı: şarj istasyonu yolu kapanıyor.");
+            notifyChange();
+            return true;
+        }
+
+        sendMessage(target.getName() + " taşındı.");
+        notifyChange();
+        return true;
+    }
+
+    public boolean moveDirt(Position source, Position target) {
+        if (!room.isInside(source) || !room.getCell(source).hasDirt()) {
+            return false;
+        }
+        if (isFurnitureEditingLocked()) {
+            sendMessage("Simülasyon çalışırken kir taşınamaz.");
+            notifyChange();
+            return true;
+        }
+
+        Optional<String> error = room.moveDirt(source, target, robot.getPosition(), robot.getCleanedPositions());
+        if (error.isPresent()) {
+            sendMessage("Kir taşınamadı: " + error.get());
+        } else {
+            sendMessage("Kir taşındı: (" + target.row() + ", " + target.col() + ")");
+        }
+        notifyChange();
+        return true;
     }
 
     public void setBatteryLevel(int level) {
@@ -524,6 +680,7 @@ public class SimulationController {
         lastBatteryEvent = "Hazır";
         movementStepsSinceBatteryCost = 0;
         cleaningCompleted = false;
+        lastRandomFurnitureTemplate = null;
     }
 
     public Room getRoom() {

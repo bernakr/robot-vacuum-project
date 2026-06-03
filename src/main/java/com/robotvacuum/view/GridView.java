@@ -8,6 +8,7 @@ import com.robotvacuum.model.Position;
 import com.robotvacuum.model.Robot;
 import com.robotvacuum.model.Room;
 import com.robotvacuum.model.enums.DirtType;
+import com.robotvacuum.model.enums.SimulationState;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.effect.DropShadow;
@@ -20,15 +21,24 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class GridView extends Pane {
+    private enum DragKind {
+        NONE,
+        FURNITURE,
+        DIRT
+    }
+
     private static final double COORD_TOP_SPACE = 22;
     private static final double COORD_LEFT_SPACE = 30;
     private static final double PAD = 12;
     private static final double WALL_MIN = 24;
     private static final double WALL_MAX = 40;
     private static final double WALL_RATIO = 0.5;
+    private static final double DRAG_THRESHOLD = 5;
 
     private final Canvas canvas = new Canvas();
     private final GridController gridController;
@@ -38,6 +48,13 @@ public class GridView extends Pane {
     private double cellSize;
     private double gridX;
     private double gridY;
+    private DragKind dragKind = DragKind.NONE;
+    private Position dragSourcePosition;
+    private Position dragPreviewPosition;
+    private double dragStartX;
+    private double dragStartY;
+    private boolean dragActive;
+    private boolean suppressNextClick;
 
     public GridView(GridController gridController) {
         this.gridController = gridController;
@@ -47,7 +64,57 @@ public class GridView extends Pane {
         widthProperty().addListener((observable, oldValue, newValue) -> resizeCanvas());
         heightProperty().addListener((observable, oldValue, newValue) -> resizeCanvas());
 
+        canvas.setOnMousePressed(event -> {
+            if (event.getButton() != MouseButton.PRIMARY || room == null) {
+                return;
+            }
+            Position position = toPosition(event.getX(), event.getY());
+            dragKind = dragKindAt(position);
+            dragSourcePosition = dragKind == DragKind.NONE ? null : position;
+            dragPreviewPosition = null;
+            dragStartX = event.getX();
+            dragStartY = event.getY();
+            dragActive = false;
+        });
+
+        canvas.setOnMouseDragged(event -> {
+            if (dragKind == DragKind.NONE || dragSourcePosition == null) {
+                return;
+            }
+            double dx = event.getX() - dragStartX;
+            double dy = event.getY() - dragStartY;
+            if (!dragActive && Math.hypot(dx, dy) < DRAG_THRESHOLD) {
+                return;
+            }
+            dragActive = true;
+            dragPreviewPosition = toPosition(event.getX(), event.getY());
+            draw();
+            event.consume();
+        });
+
+        canvas.setOnMouseReleased(event -> {
+            if (event.getButton() != MouseButton.PRIMARY || !dragActive) {
+                resetDragState(false);
+                return;
+            }
+            Position target = toPosition(event.getX(), event.getY());
+            if (target != null && dragSourcePosition != null) {
+                if (dragKind == DragKind.FURNITURE) {
+                    gridController.moveFurniture(dragSourcePosition, target);
+                } else if (dragKind == DragKind.DIRT) {
+                    gridController.moveDirt(dragSourcePosition, target);
+                }
+            }
+            resetDragState(true);
+            draw();
+            event.consume();
+        });
+
         canvas.setOnMouseClicked(event -> {
+            if (suppressNextClick) {
+                suppressNextClick = false;
+                return;
+            }
             if (event.getButton() != MouseButton.PRIMARY || room == null) {
                 return;
             }
@@ -103,9 +170,37 @@ public class GridView extends Pane {
         drawChargingStation(gc);
         drawRobot(gc);
         drawSelectedCell(gc);
+        drawDragPreview(gc);
         if (showCompletionOverlay) {
             drawCompletionOverlay(gc);
         }
+    }
+
+    private DragKind dragKindAt(Position position) {
+        if (position == null || !isDragEditingAllowed()) {
+            return DragKind.NONE;
+        }
+        Cell cell = room.getCell(position);
+        if (cell.hasObstacle()) {
+            return DragKind.FURNITURE;
+        }
+        if (cell.hasDirt()) {
+            return DragKind.DIRT;
+        }
+        return DragKind.NONE;
+    }
+
+    private boolean isDragEditingAllowed() {
+        return robot != null
+                && (robot.getState() == SimulationState.READY || robot.getState() == SimulationState.PAUSED);
+    }
+
+    private void resetDragState(boolean suppressClick) {
+        dragKind = DragKind.NONE;
+        dragSourcePosition = null;
+        dragPreviewPosition = null;
+        dragActive = false;
+        suppressNextClick = suppressClick;
     }
 
     private void calculateGridGeometry() {
@@ -257,6 +352,43 @@ public class GridView extends Pane {
         gc.strokeRoundRect(x, y, cellSize - 6, cellSize - 6, 6, 6);
     }
 
+    private void drawDragPreview(GraphicsContext gc) {
+        if (!dragActive || dragPreviewPosition == null || dragSourcePosition == null) {
+            return;
+        }
+
+        gc.setLineDashes(6, 5);
+        gc.setLineWidth(3);
+        gc.setStroke(Color.web("#ffcf4d", 0.92));
+        gc.setFill(Color.web("#ffcf4d", 0.16));
+
+        if (dragKind == DragKind.DIRT) {
+            drawPreviewCell(gc, dragPreviewPosition);
+        } else if (dragKind == DragKind.FURNITURE) {
+            room.findObstacleAt(dragSourcePosition).ifPresent(obstacle -> {
+                int rowDelta = dragPreviewPosition.row() - dragSourcePosition.row();
+                int colDelta = dragPreviewPosition.col() - dragSourcePosition.col();
+                Set<Position> previewPositions = new LinkedHashSet<>();
+                for (Position position : obstacle.getPositions()) {
+                    previewPositions.add(new Position(position.row() + rowDelta, position.col() + colDelta));
+                }
+                for (Position position : previewPositions) {
+                    if (room.isInside(position)) {
+                        drawPreviewCell(gc, position);
+                    }
+                }
+            });
+        }
+        gc.setLineDashes(null);
+    }
+
+    private void drawPreviewCell(GraphicsContext gc, Position position) {
+        double x = gridX + position.col() * cellSize + 4;
+        double y = gridY + position.row() * cellSize + 4;
+        gc.fillRoundRect(x, y, cellSize - 8, cellSize - 8, 6, 6);
+        gc.strokeRoundRect(x, y, cellSize - 8, cellSize - 8, 6, 6);
+    }
+
     private void drawPaths(GraphicsContext gc) {
         List<Position> movementPath = robot.getMovementPath();
         gc.setLineWidth(2.2);
@@ -321,8 +453,32 @@ public class GridView extends Pane {
             double width = (maxCol - minCol + 1) * cellSize - 6;
             double height = (maxRow - minRow + 1) * cellSize - 6;
 
-            drawFurniture(gc, obstacle.getName(), x, y, width, height);
+            drawFurniture(gc, obstacle.getName(), x, y, width, height, obstacle.getRotationDegrees());
         }
+    }
+
+    private void drawFurniture(
+            GraphicsContext gc,
+            String name,
+            double x,
+            double y,
+            double width,
+            double height,
+            int rotationDegrees
+    ) {
+        if (rotationDegrees == 0) {
+            drawFurniture(gc, name, x, y, width, height);
+            return;
+        }
+
+        boolean sideways = Math.floorMod(rotationDegrees, 180) != 0;
+        double drawWidth = sideways ? height : width;
+        double drawHeight = sideways ? width : height;
+        gc.save();
+        gc.translate(x + width / 2, y + height / 2);
+        gc.rotate(rotationDegrees);
+        drawFurniture(gc, name, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+        gc.restore();
     }
 
     private void drawFurniture(GraphicsContext gc, String name, double x, double y, double width, double height) {
@@ -343,7 +499,7 @@ public class GridView extends Pane {
         } else if (name.contains("Konsol")) {
             drawConsole(gc, x, y, width, height);
         } else if (name.contains("Dolap")) {
-            drawBookcase(gc, x, y, width, height);
+            drawClosetFallback(gc, x, y, width, height);
         } else if (name.contains("Kitaplık")) {
             drawBookcase(gc, x, y, width, height);
         } else if (name.contains("Bitki")) {
@@ -438,6 +594,56 @@ public class GridView extends Pane {
     }
 
     private void drawBookcase(GraphicsContext gc, double x, double y, double width, double height) {
+        drawFurnitureShadow(gc, x, y, width, height, 0.08);
+        double shelfX = x + width * 0.16;
+        double shelfY = y + height * 0.04;
+        double shelfW = width * 0.68;
+        double shelfH = height * 0.92;
+
+        gc.setFill(Color.web("#633719"));
+        gc.fillRoundRect(shelfX, shelfY, shelfW, shelfH, 5, 5);
+        gc.setFill(Color.web("#8f4d1f"));
+        gc.fillRoundRect(shelfX + shelfW * 0.08, shelfY + shelfH * 0.04,
+                shelfW * 0.84, shelfH * 0.9, 4, 4);
+        gc.setStroke(Color.web("#3e2110"));
+        gc.setLineWidth(Math.max(1.2, Math.min(width, height) * 0.04));
+        gc.strokeRoundRect(shelfX, shelfY, shelfW, shelfH, 5, 5);
+
+        int shelfCount = 4;
+        double innerX = shelfX + shelfW * 0.15;
+        double innerW = shelfW * 0.7;
+        for (int i = 1; i < shelfCount; i++) {
+            double shelfLineY = shelfY + shelfH * i / shelfCount;
+            gc.setStroke(Color.web("#4f2a13", 0.9));
+            gc.setLineWidth(1.5);
+            gc.strokeLine(shelfX + shelfW * 0.1, shelfLineY, shelfX + shelfW * 0.9, shelfLineY);
+        }
+
+        Color[] colors = {
+                Color.web("#2b90d9"),
+                Color.web("#f2d36b"),
+                Color.web("#d9534f"),
+                Color.web("#7cc36a"),
+                Color.web("#efe8d1")
+        };
+        for (int shelf = 0; shelf < shelfCount; shelf++) {
+            double slotTop = shelfY + shelfH * shelf / shelfCount + shelfH * 0.05;
+            double slotHeight = shelfH / shelfCount * 0.58;
+            double bookW = innerW / 6.5;
+            for (int book = 0; book < 5; book++) {
+                double bookX = innerX + book * bookW * 1.12;
+                double bookH = slotHeight * (book % 2 == 0 ? 1.0 : 0.78);
+                double bookY = slotTop + (slotHeight - bookH);
+                gc.setFill(colors[(shelf + book) % colors.length]);
+                gc.fillRoundRect(bookX, bookY, bookW, bookH, 1.5, 1.5);
+                gc.setStroke(Color.web("#2b190f", 0.48));
+                gc.setLineWidth(0.7);
+                gc.strokeRoundRect(bookX, bookY, bookW, bookH, 1.5, 1.5);
+            }
+        }
+    }
+
+    private void drawClosetFallback(GraphicsContext gc, double x, double y, double width, double height) {
         drawFurnitureShadow(gc, x, y, width, height, 0.12);
         drawWoodRect(gc, x + width * 0.12, y + height * 0.04, width * 0.76, height * 0.92, 5);
         gc.setFill(Color.web("#3b2415", 0.72));

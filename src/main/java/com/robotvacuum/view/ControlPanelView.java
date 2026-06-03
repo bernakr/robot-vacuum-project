@@ -2,6 +2,7 @@ package com.robotvacuum.view;
 
 import com.robotvacuum.controller.GridController;
 import com.robotvacuum.controller.SimulationController;
+import com.robotvacuum.model.FurnitureTemplate;
 import com.robotvacuum.model.Robot;
 import com.robotvacuum.model.enums.CleaningAlgorithm;
 import com.robotvacuum.model.enums.DirtType;
@@ -9,12 +10,15 @@ import com.robotvacuum.model.enums.SimulationState;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.Tooltip;
 import javafx.scene.Node;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -32,6 +36,7 @@ public class ControlPanelView extends VBox {
     private final ProgressBar batteryBar = new ProgressBar(1.0);
     private final TextField batteryInput = new TextField();
     private final ToggleButton obstacleButton = new ToggleButton("Mobilya Ekle");
+    private final MenuButton furnitureMenuButton = new MenuButton();
     private ToggleButton dirtButton;
     private Button startButton;
     private Button pauseButton;
@@ -62,6 +67,7 @@ public class ControlPanelView extends VBox {
         obstacleButton.setMaxWidth(Double.MAX_VALUE);
         styleGraphicButton(dirtButton, IconFactory.Icon.DUST, "tool-primary");
         styleGraphicButton(obstacleButton, IconFactory.Icon.SOFA, "tool-success");
+        buildFurnitureMenu();
         dirtButton.setOnAction(event -> {
             controller.getGridController().setEditMode(GridController.EditMode.DIRT);
             controller.getGridController().addDirtToSelectedCell();
@@ -70,6 +76,9 @@ public class ControlPanelView extends VBox {
             controller.getGridController().setEditMode(GridController.EditMode.OBSTACLE);
             controller.getGridController().addObstacleToSelectedCell();
         });
+        HBox furnitureControl = new HBox(0, obstacleButton, furnitureMenuButton);
+        furnitureControl.getStyleClass().add("furniture-control");
+        HBox.setHgrow(obstacleButton, Priority.ALWAYS);
 
         ToggleGroup dirtGroup = new ToggleGroup();
         RadioButton dust = dirtRadio("Toz", DirtType.DUST, IconFactory.Icon.DUST, dirtGroup);
@@ -136,7 +145,7 @@ public class ControlPanelView extends VBox {
 
         getChildren().addAll(
                 title(),
-                section("Araçlar", IconFactory.Icon.TOOLS, dirtButton, statusRow("Kir Türü", selectedDirtValue), dirtSegment, obstacleButton),
+                section("Araçlar", IconFactory.Icon.TOOLS, dirtButton, statusRow("Kir Türü", selectedDirtValue), dirtSegment, furnitureControl),
                 section("Robot Hızı", IconFactory.Icon.SPEED, speedBox),
                 section("Temizlik Algoritması", IconFactory.Icon.GEAR, algorithmBox),
                 section("Robot Durumu", IconFactory.Icon.ROBOT, statusRow("Konum", positionValue), statusRow("Yön", directionValue),
@@ -178,6 +187,33 @@ public class ControlPanelView extends VBox {
             dirtButton.setSelected(true);
         });
         return button;
+    }
+
+    private void buildFurnitureMenu() {
+        furnitureMenuButton.setGraphic(IconFactory.create(IconFactory.Icon.SOFA));
+        furnitureMenuButton.setText("");
+        furnitureMenuButton.setTooltip(new Tooltip("Mobilya türü seç"));
+        furnitureMenuButton.getStyleClass().addAll("tool-success", "furniture-picker");
+        furnitureMenuButton.setMaxWidth(52);
+        furnitureMenuButton.setMinWidth(50);
+        furnitureMenuButton.setPrefWidth(50);
+
+        MenuItem random = new MenuItem("Rastgele");
+        random.setOnAction(event -> {
+            controller.setSelectedFurnitureTemplate(null);
+            controller.getGridController().setEditMode(GridController.EditMode.OBSTACLE);
+            obstacleButton.setSelected(true);
+        });
+        furnitureMenuButton.getItems().add(random);
+        for (FurnitureTemplate template : controller.getFurnitureTemplates()) {
+            MenuItem item = new MenuItem(template.name());
+            item.setOnAction(event -> {
+                controller.setSelectedFurnitureTemplate(template);
+                controller.getGridController().setEditMode(GridController.EditMode.OBSTACLE);
+                obstacleButton.setSelected(true);
+            });
+            furnitureMenuButton.getItems().add(item);
+        }
     }
 
     private RadioButton algorithmRadio(String text, CleaningAlgorithm algorithm, ToggleGroup group) {
@@ -239,6 +275,11 @@ public class ControlPanelView extends VBox {
                 || robot.getState() == SimulationState.RETURNING_TO_CHARGER
                 || robot.getState() == SimulationState.RETURNING_TO_WORK
                 || robot.getState() == SimulationState.CHARGING);
+        furnitureMenuButton.setDisable(obstacleButton.isDisabled());
+        FurnitureTemplate selectedFurniture = controller.getSelectedFurnitureTemplate();
+        furnitureMenuButton.setTooltip(new Tooltip(selectedFurniture == null
+                ? "Mobilya türü: Rastgele"
+                : "Mobilya türü: " + selectedFurniture.name()));
         if (obstacleButton.isDisabled() && controller.getGridController().getEditMode() == GridController.EditMode.OBSTACLE) {
             controller.getGridController().setEditMode(GridController.EditMode.DIRT);
             dirtButton.setSelected(true);

@@ -36,7 +36,7 @@ public final class ImageAssets {
         if (name.contains("Konsol")) {
             return load("console.png");
         }
-        if (name.contains("Dolap") || name.contains("Kitaplık")) {
+        if (name.contains("Dolap")) {
             return load("bookcase.png");
         }
         if (name.contains("Bitki")) {
