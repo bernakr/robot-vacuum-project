@@ -78,10 +78,24 @@ public class SimulationController {
         } else if (robot.getState() == SimulationState.PAUSED && stateBeforePause != SimulationState.ERROR) {
             clearMessage();
             gridController.setEditMode(GridController.EditMode.DIRT);
+            if (shouldResumeFromChargingPause()) {
+                startReturnToWork();
+                timeline.play();
+                notifyChange();
+                return;
+            }
             robot.setState(stateBeforePause == SimulationState.PAUSED ? SimulationState.RUNNING : stateBeforePause);
             timeline.play();
             notifyChange();
         }
+    }
+
+    private boolean shouldResumeFromChargingPause() {
+        return !cleaningCompleted
+                && workResumePosition != null
+                && robot.getBattery().isFull()
+                && room.getChargingStation() != null
+                && robot.getPosition().equals(room.getChargingStation().getPosition());
     }
 
     public void pause() {
@@ -557,9 +571,14 @@ public class SimulationController {
         lastBatteryEvent = String.format("Şarj +%.0f", SimulationConfig.CHARGE_PER_TICK);
         if (robot.getBattery().isFull() && cleaningCompleted) {
             robot.setState(SimulationState.PAUSED);
+            stateBeforePause = SimulationState.PAUSED;
+            timeline.pause();
             sendMessage("Temizlik tamamlandı. Robot şarj istasyonunda.");
         } else if (robot.getBattery().isFull()) {
-            startReturnToWork();
+            robot.setState(SimulationState.PAUSED);
+            stateBeforePause = workResumePosition == null ? SimulationState.RUNNING : SimulationState.RETURNING_TO_WORK;
+            timeline.pause();
+            sendMessage("Şarj tamamlandı. Devam etmek için Başlat'a basın.");
         }
     }
 
