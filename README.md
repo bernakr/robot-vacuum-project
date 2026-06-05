@@ -1,6 +1,6 @@
 # Robot Süpürge Simülasyonu
 
-Java 17 ve JavaFX ile hazırlanmış BZ 214 Robot Süpürge Simülasyonu projesidir.
+Java 17 ve JavaFX ile hazırlanmış BZ 214 Robot Süpürge Simülasyonu projesidir. Bu proje BZ 214 Görsel Programlama dersi kapsamında geliştirilmiştir. Ders sorumlusuna ve katkıda bulunanlara özel teşekkürler.
 
 ## Çalıştırma
 
