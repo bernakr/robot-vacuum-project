@@ -1,5 +1,10 @@
 package com.robotvacuum.view;
 
+import java.util.Comparator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
 import com.robotvacuum.controller.GridController;
 import com.robotvacuum.model.Cell;
 import com.robotvacuum.model.Dirt;
@@ -9,6 +14,7 @@ import com.robotvacuum.model.Robot;
 import com.robotvacuum.model.Room;
 import com.robotvacuum.model.enums.DirtType;
 import com.robotvacuum.model.enums.SimulationState;
+
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.effect.DropShadow;
@@ -19,11 +25,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
-
-import java.util.Comparator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
 
 public class GridView extends Pane {
     private enum DragKind {
@@ -208,15 +209,13 @@ public class GridView extends Pane {
         double availableHeight = Math.max(1, canvas.getHeight() - PAD * 2 - COORD_TOP_SPACE);
         double estimatedCellSize = Math.min(
                 availableWidth / (room.getCols() + WALL_RATIO * 2),
-                availableHeight / (room.getRows() + WALL_RATIO * 2)
-        );
+                availableHeight / (room.getRows() + WALL_RATIO * 2));
 
         double wall = wallThickness(estimatedCellSize);
         for (int i = 0; i < 3; i++) {
             cellSize = Math.min(
                     (availableWidth - wall * 2) / room.getCols(),
-                    (availableHeight - wall * 2) / room.getRows()
-            );
+                    (availableHeight - wall * 2) / room.getRows());
             wall = wallThickness(cellSize);
         }
 
@@ -282,10 +281,9 @@ public class GridView extends Pane {
 
         gc.setFill(Color.web("#0b0c0e"));
         gc.fillPolygon(
-                new double[]{left, left + wall, left + wall, left},
-                new double[]{top + wall, top, top + wall * 0.22, top + wall * 1.22},
-                4
-        );
+                new double[] { left, left + wall, left + wall, left },
+                new double[] { top + wall, top, top + wall * 0.22, top + wall * 1.22 },
+                4);
         gc.setStroke(Color.web("#424448", 0.65));
         gc.setLineWidth(Math.max(1.8, wall * 0.08));
         gc.strokeLine(left + wall * 0.12, top + wall * 0.96, left + wall * 0.96, top + wall * 0.12);
@@ -436,7 +434,7 @@ public class GridView extends Pane {
         double rightX = backX + Math.cos(angle - Math.PI / 2) * arrowWidth;
         double rightY = backY + Math.sin(angle - Math.PI / 2) * arrowWidth;
         gc.setLineDashes(null);
-        gc.fillPolygon(new double[]{midX, leftX, rightX}, new double[]{midY, leftY, rightY}, 3);
+        gc.fillPolygon(new double[] { midX, leftX, rightX }, new double[] { midY, leftY, rightY }, 3);
         if (dashed) {
             gc.setLineDashes(7, 6);
         }
@@ -464,8 +462,7 @@ public class GridView extends Pane {
             double y,
             double width,
             double height,
-            int rotationDegrees
-    ) {
+            int rotationDegrees) {
         if (rotationDegrees == 0) {
             drawFurniture(gc, name, x, y, width, height);
             return;
@@ -668,7 +665,8 @@ public class GridView extends Pane {
         drawWoodRect(gc, x + width * 0.08, y + height * 0.08, width * 0.84, height * 0.84, 7);
     }
 
-    private void drawFurnitureShadow(GraphicsContext gc, double x, double y, double width, double height, double insetRatio) {
+    private void drawFurnitureShadow(GraphicsContext gc, double x, double y, double width, double height,
+            double insetRatio) {
         double inset = Math.min(width, height) * insetRatio;
         gc.setFill(Color.web("#2b1d14", 0.24));
         gc.fillRoundRect(x + inset * 0.55, y + inset * 0.85, width - inset, height - inset, 12, 12);
@@ -678,7 +676,8 @@ public class GridView extends Pane {
         gc.setFill(Color.web("#8c4d22"));
         gc.fillRoundRect(x, y, width, height, radius, radius);
         gc.setFill(Color.web("#a65f2a"));
-        gc.fillRoundRect(x + width * 0.04, y + height * 0.05, width * 0.92, height * 0.88, radius * 0.75, radius * 0.75);
+        gc.fillRoundRect(x + width * 0.04, y + height * 0.05, width * 0.92, height * 0.88, radius * 0.75,
+                radius * 0.75);
         gc.setStroke(Color.web("#5a2f17"));
         gc.setLineWidth(2);
         gc.strokeRoundRect(x, y, width, height, radius, radius);
@@ -866,7 +865,8 @@ public class GridView extends Pane {
         gc.setFill(Color.web("#26364f"));
         gc.fillOval(x - radius * 0.45, y - radius * 0.45, radius * 0.9, radius * 0.9);
         gc.setStroke(Color.web("#ffce45"));
-        gc.strokeLine(x, y, x + robot.getDirection().colDelta() * radius * 0.9, y + robot.getDirection().rowDelta() * radius * 0.9);
+        gc.strokeLine(x, y, x + robot.getDirection().colDelta() * radius * 0.9,
+                y + robot.getDirection().rowDelta() * radius * 0.9);
         drawRobotBatteryBadge(gc, x, y, radius);
     }
 
@@ -919,7 +919,8 @@ public class GridView extends Pane {
         return Color.web("#28e47b");
     }
 
-    private void drawAsset(GraphicsContext gc, Image image, double x, double y, double width, double height, double scale) {
+    private void drawAsset(GraphicsContext gc, Image image, double x, double y, double width, double height,
+            double scale) {
         double imageWidth = image.getWidth();
         double imageHeight = image.getHeight();
         if (imageWidth <= 0 || imageHeight <= 0) {

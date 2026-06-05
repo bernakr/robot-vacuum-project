@@ -1,5 +1,7 @@
 package com.robotvacuum.model.enums;
 
+// Temizleme için türleri belirttik 
+
 public enum CleaningAlgorithm {
     RANDOM("Rastgele"),
     SPIRAL("Spiral"),
@@ -15,7 +17,8 @@ public enum CleaningAlgorithm {
         return displayName;
     }
 
-    @Override
+    @Override // burada override etmemizin sebebi Random olarak algoritmanın adını yazmak  yerine
+    // atama yaptığımız Rastegele gibi isimleri döndürmek için
     public String toString() {
         return displayName;
     }

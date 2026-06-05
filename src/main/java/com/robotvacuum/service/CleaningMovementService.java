@@ -1,23 +1,48 @@
 package com.robotvacuum.service;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.Random;
+import java.util.Set;
+import java.util.function.Predicate;
+
 import com.robotvacuum.model.Position;
 import com.robotvacuum.model.Robot;
 import com.robotvacuum.model.Room;
 import com.robotvacuum.model.enums.CleaningAlgorithm;
 import com.robotvacuum.model.enums.Direction;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Random;
-import java.util.function.Predicate;
-import java.util.Set;
+// Robotun seçili temizlik algoritmasına göre bir sonraki hareket yönünü belirleyen servis.
+// Bu sınıf robotu doğrudan hareket ettirmez; sadece Direction döndürür.
+// Gerçek hareket, bu yön bilgisini kullanan controller/simulation katmanında yapılır.
 
+/*
+chooseDirection()
+→ Hangi algoritma seçili ona bakar.
+
+chooseRandom()
+→ Önce rastgele yönlerde temizlenmemiş hücre arar.
+→ Yoksa en yakın temizlenmemiş hücreye yön bulur.
+→ O da yoksa geçilebilir herhangi bir yöne gider.
+
+chooseSpiral()
+→ Odanın merkezinden başlayarak spiral hedef listesi oluşturur.
+→ Temizlenmemiş ve geçilebilir ilk hedefe doğru yön seçer.
+
+chooseWallFollow()
+→ Önce gerçek oda sınırına gitmeye çalışır.
+→ Sonra duvar/engel/temizlenmiş alan kenarındaki frontier hücreleri takip eder.
+
+chooseDirectionToNearest()
+→ Küçük BFS mantığıyla en yakın hedefe giden ilk yönü bulur.
+
+ */
 public class CleaningMovementService {
     private final Random random = new Random(214);
 
@@ -141,7 +166,8 @@ public class CleaningMovementService {
             robot.setWallFollowInitialized(true);
         }
 
-        Optional<Direction> localFrontier = firstFrontierDirection(room, robot, wallFollowDirections(robot.getDirection()));
+        Optional<Direction> localFrontier = firstFrontierDirection(room, robot,
+                wallFollowDirections(robot.getDirection()));
         if (localFrontier.isPresent()) {
             robot.setWallFollowInitialized(true);
             robot.advanceWallFollowStep();
@@ -286,8 +312,7 @@ public class CleaningMovementService {
                 current.turnRight(),
                 current,
                 current.turnLeft(),
-                current.reverse()
-        );
+                current.reverse());
     }
 
     private List<Direction> spiralDirections(Direction current) {
@@ -295,8 +320,7 @@ public class CleaningMovementService {
                 current,
                 current.turnRight(),
                 current.turnLeft(),
-                current.reverse()
-        );
+                current.reverse());
     }
 
     private List<Direction> shuffledDirections() {

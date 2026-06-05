@@ -28,3 +28,10 @@ Proje MVC yaklaşımıyla ayrılmıştır:
 - `controller`: simülasyon akışı ve kullanıcı etkileşimleri
 - `view`: JavaFX arayüz bileşenleri
 - `config`: sabitler ve demo oda kurulumu
+
+config      → hazır oda / başlangıç ayarları
+controller  → butonlar ve ekran olaylarını yönetir
+model       → robot, oda, hücre, kir, mobilya gibi veriler
+service     → temizlik algoritması, yol bulma, istatistik
+view        → JavaFX ekranları, grid çizimi, panel tasarımı
+resources   → css, görseller

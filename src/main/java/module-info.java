@@ -1,5 +1,7 @@
 module com.robotvacuum {
+
     requires javafx.controls;
+    requires javafx.graphics;
 
     exports com.robotvacuum;
     exports com.robotvacuum.config;

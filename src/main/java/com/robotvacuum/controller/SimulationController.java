@@ -1,5 +1,13 @@
 package com.robotvacuum.controller;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
+import java.util.Set;
+
 import com.robotvacuum.config.DemoRoomFactory;
 import com.robotvacuum.config.SimulationConfig;
 import com.robotvacuum.model.Battery;
@@ -16,17 +24,10 @@ import com.robotvacuum.model.enums.SimulationState;
 import com.robotvacuum.service.BfsPathfindingService;
 import com.robotvacuum.service.CleaningMovementService;
 import com.robotvacuum.service.StatisticsService;
+
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Random;
-import java.util.Set;
 
 public class SimulationController {
     private static final List<FurnitureTemplate> FURNITURE_TEMPLATES = List.of(
@@ -170,6 +171,7 @@ public class SimulationController {
         notifyChange();
     }
 
+    // kir ekleme içinde modeldeki ana kontrol servisi çağırıyor aslında
     public void addDirt(Position position, DirtType type) {
         Optional<String> error = room.addDirt(position, type, robot.getPosition(), robot.getCleanedPositions());
         error.ifPresentOrElse(message -> {
@@ -181,6 +183,7 @@ public class SimulationController {
         });
     }
 
+    // random kir ekleme butonun basınca çalıştırılan kısım 
     public void addRandomDirt(DirtType type) {
         List<Position> candidates = new ArrayList<>();
         for (int row = 0; row < room.getRows(); row++) {
