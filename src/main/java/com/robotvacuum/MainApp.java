@@ -2,6 +2,7 @@ package com.robotvacuum;
 
 import com.robotvacuum.controller.SimulationController;
 import com.robotvacuum.view.MainView;
+
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
