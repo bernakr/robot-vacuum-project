@@ -59,6 +59,7 @@ public class SimulationController {
     private String lastBatteryEvent = "Hazır";
     private int movementStepsSinceBatteryCost;
     private boolean cleaningCompleted;
+    private boolean pauseAfterCharging;
     private FurnitureTemplate selectedFurnitureTemplate;
     private FurnitureTemplate lastRandomFurnitureTemplate;
 
@@ -116,10 +117,15 @@ public class SimulationController {
     }
 
     public void returnToChargingStation() {
-        returnToChargingStation(true);
+        returnToChargingStation(true, true);
     }
 
     private void returnToChargingStation(boolean resumeAfterCharging) {
+        returnToChargingStation(resumeAfterCharging, false);
+    }
+
+    private void returnToChargingStation(boolean resumeAfterCharging, boolean pauseAfterCharging) {
+        this.pauseAfterCharging = pauseAfterCharging;
         if (resumeAfterCharging && !robot.getPosition().equals(room.getChargingStation().getPosition())) {
             workResumePosition = robot.getPosition();
         } else if (!resumeAfterCharging) {
@@ -439,7 +445,7 @@ public class SimulationController {
             if (robot.getState() == SimulationState.RUNNING
                     && level <= SimulationConfig.LOW_BATTERY_THRESHOLD
                     && !robot.getPosition().equals(room.getChargingStation().getPosition())) {
-                returnToChargingStation();
+                returnToChargingStation(true);
                 return;
             }
             clearMessage();
@@ -492,7 +498,7 @@ public class SimulationController {
         }
 
         if (robot.getBattery().getLevel() <= SimulationConfig.LOW_BATTERY_THRESHOLD) {
-            returnToChargingStation();
+            returnToChargingStation(true);
             return;
         }
 
@@ -535,7 +541,7 @@ public class SimulationController {
             robot.markCleaned(robot.getPosition());
             robot.setActiveDirt(null);
             if (robot.getBattery().getLevel() <= SimulationConfig.LOW_BATTERY_THRESHOLD) {
-                returnToChargingStation();
+                returnToChargingStation(true);
             } else if (isCleaningComplete()) {
                 completeCleaning();
             } else {
@@ -574,11 +580,14 @@ public class SimulationController {
             stateBeforePause = SimulationState.PAUSED;
             timeline.pause();
             sendMessage("Temizlik tamamlandı. Robot şarj istasyonunda.");
-        } else if (robot.getBattery().isFull()) {
+        } else if (robot.getBattery().isFull() && pauseAfterCharging) {
             robot.setState(SimulationState.PAUSED);
             stateBeforePause = workResumePosition == null ? SimulationState.RUNNING : SimulationState.RETURNING_TO_WORK;
+            pauseAfterCharging = false;
             timeline.pause();
             sendMessage("Şarj tamamlandı. Devam etmek için Başlat'a basın.");
+        } else if (robot.getBattery().isFull()) {
+            startReturnToWork();
         }
     }
 
@@ -699,6 +708,7 @@ public class SimulationController {
         lastBatteryEvent = "Hazır";
         movementStepsSinceBatteryCost = 0;
         cleaningCompleted = false;
+        pauseAfterCharging = false;
         lastRandomFurnitureTemplate = null;
     }
 
