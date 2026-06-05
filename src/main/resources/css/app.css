@@ -481,3 +481,9 @@
     -fx-font-size: 12px;
     -fx-font-weight: 700;
 }
+
+.obstacle-detail {
+    -fx-font-size: 12px;
+    -fx-text-fill: #cbd5e1;
+    -fx-padding: 0 0 4 42;
+}

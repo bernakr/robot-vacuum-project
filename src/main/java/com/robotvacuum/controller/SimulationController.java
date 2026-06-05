@@ -23,6 +23,7 @@ import com.robotvacuum.model.enums.DirtType;
 import com.robotvacuum.model.enums.SimulationState;
 import com.robotvacuum.service.BfsPathfindingService;
 import com.robotvacuum.service.CleaningMovementService;
+import com.robotvacuum.service.RobotSoundService;
 import com.robotvacuum.service.StatisticsService;
 
 import javafx.animation.KeyFrame;
@@ -38,8 +39,7 @@ public class SimulationController {
             new FurnitureTemplate("Konsol", 1, 4),
             new FurnitureTemplate("Dolap", 2, 2),
             new FurnitureTemplate("Kitaplık", 3, 1),
-            new FurnitureTemplate("Bitki", 1, 1)
-    );
+            new FurnitureTemplate("Bitki", 1, 1));
 
     private final BfsPathfindingService pathfindingService = new BfsPathfindingService();
     private final CleaningMovementService movementService = new CleaningMovementService();
@@ -48,11 +48,14 @@ public class SimulationController {
     private final Random dirtRandom = new Random(642);
     private final Random furnitureRandom = new Random(913);
     private final Timeline timeline;
+    private final RobotSoundService soundService = new RobotSoundService();
 
     private Room room;
     private Robot robot;
-    private Runnable onChange = () -> { };
-    private java.util.function.Consumer<String> onMessage = message -> { };
+    private Runnable onChange = () -> {
+    };
+    private java.util.function.Consumer<String> onMessage = message -> {
+    };
     private int elapsedSeconds;
     private int returnPathIndex;
     private SimulationState stateBeforePause = SimulationState.RUNNING;
@@ -76,6 +79,7 @@ public class SimulationController {
             gridController.setEditMode(GridController.EditMode.DIRT);
             robot.setState(SimulationState.RUNNING);
             timeline.play();
+            soundService.startMovementSound();
             notifyChange();
         } else if (robot.getState() == SimulationState.PAUSED && stateBeforePause != SimulationState.ERROR) {
             clearMessage();
@@ -83,11 +87,13 @@ public class SimulationController {
             if (shouldResumeFromChargingPause()) {
                 startReturnToWork();
                 timeline.play();
+                soundService.startMovementSound();
                 notifyChange();
                 return;
             }
             robot.setState(stateBeforePause == SimulationState.PAUSED ? SimulationState.RUNNING : stateBeforePause);
             timeline.play();
+            soundService.startMovementSound();
             notifyChange();
         }
     }
@@ -105,12 +111,14 @@ public class SimulationController {
             stateBeforePause = robot.getState();
             robot.setState(SimulationState.PAUSED);
             timeline.pause();
+            soundService.pauseMovementSound();
             notifyChange();
         }
     }
 
     public void reset() {
         timeline.stop();
+        soundService.stopMovementSound();
         clearMessage();
         gridController.clearSelectionSilently();
         resetModel();
@@ -149,14 +157,17 @@ public class SimulationController {
         robot.setState(SimulationState.RETURNING_TO_CHARGER);
         clearMessage();
         timeline.play();
+        soundService.startMovementSound();
         notifyChange();
     }
 
     public void cellSelected(Position position) {
         if (gridController.getEditMode() == GridController.EditMode.OBSTACLE) {
-            sendMessage("Seçili hücre: (" + position.row() + ", " + position.col() + "). Mobilya eklemek için Mobilya Ekle butonuna bas.");
+            sendMessage("Seçili hücre: (" + position.row() + ", " + position.col()
+                    + "). Mobilya eklemek için Mobilya Ekle butonuna bas.");
         } else {
-            sendMessage("Seçili hücre: (" + position.row() + ", " + position.col() + "). Kir eklemek için Kir Ekle butonuna bas.");
+            sendMessage("Seçili hücre: (" + position.row() + ", " + position.col()
+                    + "). Kir eklemek için Kir Ekle butonuna bas.");
         }
         notifyChange();
     }
@@ -183,7 +194,7 @@ public class SimulationController {
         });
     }
 
-    // random kir ekleme butonun basınca çalıştırılan kısım 
+    // random kir ekleme butonun basınca çalıştırılan kısım
     public void addRandomDirt(DirtType type) {
         List<Position> candidates = new ArrayList<>();
         for (int row = 0; row < room.getRows(); row++) {
@@ -247,7 +258,8 @@ public class SimulationController {
             for (int col = 0; col < room.getCols(); col++) {
                 Position anchor = new Position(row, col);
                 Set<Position> positions = template.positionsAt(anchor);
-                if (room.validateObstaclePlacement(positions, robot.getPosition(), robot.getCleanedPositions()).isEmpty()) {
+                if (room.validateObstaclePlacement(positions, robot.getPosition(), robot.getCleanedPositions())
+                        .isEmpty()) {
                     placements.add(new FurniturePlacement(template, anchor));
                 }
             }
@@ -264,7 +276,8 @@ public class SimulationController {
 
     private boolean placeFurniture(FurnitureTemplate template, Position anchor) {
         Set<Position> positions = template.positionsAt(anchor);
-        Optional<String> error = room.addObstacle(template.name(), positions, robot.getPosition(), robot.getCleanedPositions());
+        Optional<String> error = room.addObstacle(template.name(), positions, robot.getPosition(),
+                robot.getCleanedPositions());
         if (error.isPresent()) {
             return false;
         }
@@ -354,8 +367,7 @@ public class SimulationController {
                 rotatedPositions,
                 robot.getPosition(),
                 robot.getCleanedPositions(),
-                target
-        );
+                target);
         if (error.isPresent()) {
             sendMessage("Mobilya bu yönde döndürülemez: " + error.get());
             notifyChange();
@@ -400,8 +412,7 @@ public class SimulationController {
                 movedPositions,
                 robot.getPosition(),
                 robot.getCleanedPositions(),
-                target
-        );
+                target);
         if (error.isPresent()) {
             sendMessage("Mobilya taşınamadı: " + error.get());
             notifyChange();
@@ -467,6 +478,7 @@ public class SimulationController {
 
     public void setSpeed(double speed) {
         timeline.setRate(speed);
+        soundService.setPlaybackRate(speed);
     }
 
     public void tick() {
@@ -516,6 +528,7 @@ public class SimulationController {
         if (direction.isEmpty()) {
             robot.setState(SimulationState.PAUSED);
             timeline.pause();
+            soundService.pauseMovementSound();
             sendMessage("Robot geçerli hareket yönü bulamadı.");
             return;
         }
@@ -539,7 +552,8 @@ public class SimulationController {
         dirt.cleanOneTick();
         if (dirt.isCleaned()) {
             robot.getBattery().consume(dirt.getType().batteryCost());
-            lastBatteryEvent = String.format("%s temizliği -%.0f", dirt.getType().displayName(), dirt.getType().batteryCost());
+            lastBatteryEvent = String.format("%s temizliği -%.0f", dirt.getType().displayName(),
+                    dirt.getType().batteryCost());
             room.cleanDirt(robot.getPosition());
             robot.markCleaned(robot.getPosition());
             robot.setActiveDirt(null);
@@ -564,8 +578,7 @@ public class SimulationController {
         Position next = path.get(returnPathIndex);
         Direction direction = Direction.fromDelta(
                 next.row() - robot.getPosition().row(),
-                next.col() - robot.getPosition().col()
-        );
+                next.col() - robot.getPosition().col());
         moveRobot(direction, false, false);
         returnPathIndex++;
 
@@ -582,12 +595,14 @@ public class SimulationController {
             robot.setState(SimulationState.PAUSED);
             stateBeforePause = SimulationState.PAUSED;
             timeline.pause();
+            soundService.pauseMovementSound();
             sendMessage("Temizlik tamamlandı. Robot şarj istasyonunda.");
         } else if (robot.getBattery().isFull() && pauseAfterCharging) {
             robot.setState(SimulationState.PAUSED);
             stateBeforePause = workResumePosition == null ? SimulationState.RUNNING : SimulationState.RETURNING_TO_WORK;
             pauseAfterCharging = false;
             timeline.pause();
+            soundService.pauseMovementSound();
             sendMessage("Şarj tamamlandı. Devam etmek için Başlat'a basın.");
         } else if (robot.getBattery().isFull()) {
             startReturnToWork();
@@ -625,8 +640,7 @@ public class SimulationController {
         Position next = path.get(returnPathIndex);
         Direction direction = Direction.fromDelta(
                 next.row() - robot.getPosition().row(),
-                next.col() - robot.getPosition().col()
-        );
+                next.col() - robot.getPosition().col());
         moveRobot(direction, false, false);
         returnPathIndex++;
 
@@ -686,7 +700,8 @@ public class SimulationController {
     private boolean isCleaningComplete() {
         return !cleaningCompleted
                 && room.getActiveDirt().isEmpty()
-                && statisticsService.calculate(room, robot).visitedCleanableArea() >= statisticsService.cleanableArea(room);
+                && statisticsService.calculate(room, robot).visitedCleanableArea() >= statisticsService
+                        .cleanableArea(room);
     }
 
     private void completeCleaning() {
@@ -702,8 +717,7 @@ public class SimulationController {
                 SimulationConfig.ROBOT_START_POSITION,
                 Direction.RIGHT,
                 new Battery(SimulationConfig.INITIAL_BATTERY),
-                CleaningAlgorithm.SPIRAL
-        );
+                CleaningAlgorithm.SPIRAL);
         elapsedSeconds = 0;
         returnPathIndex = 0;
         stateBeforePause = SimulationState.RUNNING;
@@ -744,11 +758,13 @@ public class SimulationController {
     }
 
     public void setOnChange(Runnable onChange) {
-        this.onChange = onChange == null ? () -> { } : onChange;
+        this.onChange = onChange == null ? () -> {
+        } : onChange;
     }
 
     public void setOnMessage(java.util.function.Consumer<String> onMessage) {
-        this.onMessage = onMessage == null ? message -> { } : onMessage;
+        this.onMessage = onMessage == null ? message -> {
+        } : onMessage;
     }
 
     private void notifyChange() {

@@ -2,7 +2,9 @@ package com.robotvacuum.model;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -21,7 +23,8 @@ public class Room {
     private final Cell[][] grid;
 
     // Odaya eklenen tüm mobilya/engel nesnelerini tutan liste
-    // List<Obstacle> kullanarak sadece Obstacle türündeki nesnelerin eklenmesini sağlıyoruz
+    // List<Obstacle> kullanarak sadece Obstacle türündeki nesnelerin eklenmesini
+    // sağlıyoruz
     private final List<Obstacle> obstacles = new ArrayList<>();
 
     // Simülasyon boyunca eklenen toplam kir hedefi
@@ -58,7 +61,8 @@ public class Room {
     }
 
     // Verilen pozisyon grid sınırları içinde mi kontrol eder
-    // burada bunu eşya eklerken kir eklerken ve robotun ypaımız yani cell dışına çıkmaması için kullandık
+    // burada bunu eşya eklerken kir eklerken ve robotun ypaımız yani cell dışına
+    // çıkmaması için kullandık
     public boolean isInside(Position position) {
         return position.row() >= 0 && position.row() < rows
                 && position.col() >= 0 && position.col() < cols;
@@ -356,6 +360,35 @@ public class Room {
         }
 
         return dirt;
+    }
+
+    // Odadaki mobilyaların kapladığı toplam hücre sayısını döner.
+    // Robot bu alanlara giremediği için bu alan "kullanılamayan alan" sayılır.
+    public int getObstacleArea() {
+        return obstacles.stream()
+                .mapToInt(obstacle -> obstacle.getPositions().size())
+                .sum();
+    }
+
+    // Robotun temizleyebileceği gerçek alanı döner.
+    // Toplam alandan mobilya/engel alanları çıkarılır.
+    public int getCleanableArea() {
+        return (rows * cols) - getObstacleArea();
+    }
+
+    // Mobilyaları isimlerine göre gruplayıp kapladıkları toplam alanı döner.
+    // Örnek: Koltuk=8, Bitki=2, Masa=17
+    public Map<String, Integer> getObstacleAreaByName() {
+        Map<String, Integer> areaByName = new LinkedHashMap<>();
+
+        for (Obstacle obstacle : obstacles) {
+            areaByName.merge(
+                    obstacle.getName(),
+                    obstacle.getPositions().size(),
+                    Integer::sum);
+        }
+
+        return areaByName;
     }
 
     // Odadaki mobilya / engel listesini dışarıya salt okunur şekilde verir

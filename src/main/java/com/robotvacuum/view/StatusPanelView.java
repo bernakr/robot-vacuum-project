@@ -4,6 +4,7 @@ import com.robotvacuum.controller.SimulationController;
 import com.robotvacuum.model.Room;
 import com.robotvacuum.service.SimulationStats;
 import com.robotvacuum.service.StatisticsService;
+
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
@@ -12,13 +13,17 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
-public class StatusPanelView extends HBox {
+public class StatusPanelView extends VBox {
     private final SimulationController controller;
+
     private final Label totalArea = valueLabel();
+    private final Label obstacleArea = valueLabel();
     private final Label cleanedArea = valueLabel();
     private final Label remainingArea = valueLabel();
     private final Label elapsedTime = valueLabel();
     private final Label dirtRatio = valueLabel();
+    private final Label obstacleDetail = valueLabel();
+    private final HBox metricsRow = new HBox();
 
     public StatusPanelView(SimulationController controller) {
         this.controller = controller;
@@ -29,8 +34,12 @@ public class StatusPanelView extends HBox {
     }
 
     private void build() {
-        getChildren().addAll(
+        metricsRow.setSpacing(8);
+
+        metricsRow.getChildren().addAll(
                 metric("Toplam Alan", totalArea, IconFactory.Icon.AREA, "metric-area"),
+                separator(),
+                metric("Kullanılamayan Alan", obstacleArea, IconFactory.Icon.DIRTY, "metric-dirty"),
                 separator(),
                 metric("Temizlenen Alan", cleanedArea, IconFactory.Icon.CLEANED, "metric-cleaned"),
                 separator(),
@@ -38,8 +47,14 @@ public class StatusPanelView extends HBox {
                 separator(),
                 metric("Geçen Süre", elapsedTime, IconFactory.Icon.CLOCK, "metric-time"),
                 separator(),
-                metric("Toplanan Toz", dirtRatio, IconFactory.Icon.BROOM, "metric-dust")
-        );
+                metric("Toplanan Toz", dirtRatio, IconFactory.Icon.BROOM, "metric-dust"));
+
+        obstacleDetail.getStyleClass().add("obstacle-detail");
+        obstacleDetail.setWrapText(true);
+
+        getChildren().addAll(
+                metricsRow,
+                obstacleDetail);
     }
 
     private HBox metric(String title, Label value, IconFactory.Icon icon, String styleClass) {
@@ -72,11 +87,32 @@ public class StatusPanelView extends HBox {
         StatisticsService statistics = controller.getStatisticsService();
         SimulationStats stats = statistics.calculate(room, controller.getRobot());
         totalArea.setText(stats.totalArea() + " hücre");
+
+        double obstaclePercentage = stats.totalArea() == 0
+                ? 0
+                : stats.obstacleArea() * 100.0 / stats.totalArea();
+
+        String obstacleDetailText = room.getObstacleAreaByName()
+                .entrySet()
+                .stream()
+                .map(entry -> entry.getKey() + ": " + entry.getValue())
+                .reduce((first, second) -> first + ", " + second)
+                .orElse("Yok");
+
+        obstacleArea.setText(String.format("%d hücre (%.1f%%)",
+                stats.obstacleArea(),
+                obstaclePercentage));
+
+        obstacleDetail.setText("Kullanılamayan alan detayı: " + obstacleDetailText);
+
         cleanedArea.setText(String.format("%.1f%%", stats.cleanedPercentage()));
+
         remainingArea.setText(String.format("%d hücre (%.1f%%)",
                 stats.remainingCleanableArea(),
                 stats.remainingCleanablePercentage()));
+
         elapsedTime.setText(formatTime(controller.getElapsedSeconds()));
+
         dirtRatio.setText(String.format("%.1f%%", stats.collectedDirtPercentage()));
     }
 
