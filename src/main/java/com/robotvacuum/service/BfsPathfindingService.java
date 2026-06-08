@@ -16,24 +16,6 @@ import com.robotvacuum.model.enums.Direction;
 
 public class BfsPathfindingService {
 
-    // Normal hedefe giden yolu bulur
-    // Örneğin robotun bir kire veya boş hücreye gitmesi için kullanılır
-    public List<Position> findPath(Room room, Position start, Position goal) {
-        return findPath(room, start, goal, null);
-    }
-
-    // Robotun şarj istasyonuna dönüş yolunu bulur
-    // Şarj istasyonu normalde temizlik sırasında geçilebilir sayılmayabilir
-    // Bu yüzden hedef olarak şarj istasyonuna özel izin verilir
-    public List<Position> findPathToChargingStation(Room room, Position start) {
-        return findPath(
-                room,
-                start,
-                room.getChargingStation().getPosition(),
-                room.getChargingStation().getPosition()
-        );
-    }
-
     // BFS algoritmasının ana çalışan kısmı
     // start: robotun başladığı konum
     // goal: ulaşılmak istenen hedef
@@ -42,8 +24,7 @@ public class BfsPathfindingService {
             Room room,
             Position start,
             Position goal,
-            Position allowedChargingStationGoal
-    ) {
+            Position allowedChargingStationGoal) {
         // Başlangıç veya hedef geçilemezse yol yok kabul edilir
         if (!room.isPassableForPath(start, start)
                 || !room.isPassableForPath(goal, allowedChargingStationGoal)) {
@@ -51,8 +32,9 @@ public class BfsPathfindingService {
         }
 
         // BFS sırasında gezilecek pozisyonları tutan kuyruk
-        Queue<Position> queue = new ArrayDeque<>();
-
+        Queue<Position> queue = new ArrayDeque<>(); // kuyruk mantığı çünkü geldiği son noktadan bşalngıça dönüyor 
+        // üst kısımdan alta  doğru çıkarım gibi 
+        
         // Daha önce kontrol edilen pozisyonlar
         // Aynı hücreye tekrar tekrar girmeyi engeller
         Set<Position> visited = new HashSet<>();
@@ -99,12 +81,29 @@ public class BfsPathfindingService {
         return List.of();
     }
 
-    // BFS bittikten sonra hedef pozisyondan başlangıca doğru geri giderek yolu oluşturur
+    // Normal hedefe giden yolu bulur
+    // Örneğin robotun bir kire veya boş hücreye gitmesi için kullanılır
+    public List<Position> findPath(Room room, Position start, Position goal) {
+        return findPath(room, start, goal, null);
+    }
+
+    // Robotun şarj istasyonuna dönüş yolunu bulur
+    // Şarj istasyonu normalde temizlik sırasında geçilebilir sayılmayabilir
+    // Bu yüzden hedef olarak şarj istasyonuna özel izin verilir
+    public List<Position> findPathToChargingStation(Room room, Position start) {
+        return findPath(
+                room,
+                start,
+                room.getChargingStation().getPosition(),
+                room.getChargingStation().getPosition());
+    }
+
+    // BFS bittikten sonra hedef pozisyondan başlangıca doğru geri giderek yolu
+    // oluşturur
     private List<Position> reconstructPath(
             Map<Position, Position> previous,
             Position start,
-            Position goal
-    ) {
+            Position goal) {
         List<Position> path = new ArrayList<>();
 
         // Geriye doğru hedef konumdan başlıyoruz

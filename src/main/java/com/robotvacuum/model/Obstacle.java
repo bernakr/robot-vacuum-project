@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-public class Obstacle {
+public class Obstacle { // eşylarımız için olan modelimiz 
 
     // Mobilya / engelin adı
     // Örneğin: Koltuk, Masa, Dolap
@@ -12,7 +12,7 @@ public class Obstacle {
 
     // Mobilyanın grid üzerinde kapladığı tüm hücreler
     // Set kullanıldığı için aynı pozisyon iki kez eklenemez
-    // LinkedHashSet kullanıldığı için eklenme sırası korunur
+    // LinkedHashSet kullanıldığı için eklenme sırası korunur BÜTÜNLÜĞÜ DE KORUNMUŞ OLUR 
     private Set<Position> positions;
 
     // Mobilyanın dönüş açısı
@@ -70,3 +70,6 @@ public class Obstacle {
         return positions.contains(position);
     }
 }
+
+// HashSet --> tekrar eden veriyi engelliyor ama sıra olayını korumuyor 
+// LİnkHashSet --> hashsete özel ayıyeten sırayı da korur 

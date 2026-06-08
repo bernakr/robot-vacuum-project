@@ -4,7 +4,13 @@ public class Battery {
     private double level;
 
     public Battery(double initialLevel) {
-        setLevel(initialLevel);
+
+        if (initialLevel < 0 || initialLevel > 100) {
+            throw new IllegalArgumentException(
+                    "Batarya değeri 0-100 arasında olmalıdır.");
+        }
+
+        this.level = initialLevel;
     }
 
     public double getLevel() {
@@ -18,7 +24,7 @@ public class Battery {
         this.level = level;
     }
 
-    public void consume(double amount) {
+    public void consume(double amount) { // pil durumunun azalma ve artırma yapıları için 
         level = Math.max(0, level - Math.max(0, amount));
     }
 
@@ -26,7 +32,7 @@ public class Battery {
         level = Math.min(100, level + Math.max(0, amount));
     }
 
-    public boolean isFull() {
+    public boolean isFull() { // batarya doluluk kontrolü için 
         return level >= 100;
     }
 }

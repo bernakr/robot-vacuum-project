@@ -109,7 +109,7 @@ public class Robot {
     }
 
     // Robotun simülasyon durumunu döner
-    public SimulationState getState() {
+    public SimulationState getState() { // başladı durduruldu gibi durumlarını göstermk için 
         return state;
     }
 

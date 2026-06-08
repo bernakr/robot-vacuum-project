@@ -5,7 +5,6 @@ import com.robotvacuum.model.enums.CellType;
 public class Cell {
 
     // Hücrenin grid üzerindeki konumu
-    // Örneğin: row=2, col=5
     private final Position position;
 
     // Hücrede kir varsa bu alan dolu olur

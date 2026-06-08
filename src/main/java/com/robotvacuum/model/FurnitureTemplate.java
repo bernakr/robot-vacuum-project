@@ -7,7 +7,7 @@ import java.util.Set;
 // * Mobilyanın adı, kapladığı satır ve sütun bilgileri tutulur.
 public record FurnitureTemplate(String name, int rows, int cols) {
 
-    // * ComboBox gibi yapılarda mobilya adının görünmesini sağlar.
+    // * mobilya adının görünmesini sağlar.
     @Override
     public String toString() {
         return name;
@@ -15,8 +15,8 @@ public record FurnitureTemplate(String name, int rows, int cols) {
 
     // * Verilen başlangıç konumuna göre mobilyanın kapladığı tüm pozisyonları
     // hesaplar.
-    public Set<Position> positionsAt(Position anchor) {
-        return positionsAt(anchor, rows, cols);
+    public Set<Position> positionsAt(Position anchor) { // ** buralarda SET veri tipinin kullanılmaını sebebi
+        return positionsAt(anchor, rows, cols); // aynı alana birden fazla eşya yada kir konulmasını engellemk için
     }
 
     // * Mobilya döndürülmüş şekilde yerleştirilecekse satır ve sütun değerlerini

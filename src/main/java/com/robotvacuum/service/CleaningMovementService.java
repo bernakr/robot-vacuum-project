@@ -48,7 +48,7 @@ public class CleaningMovementService {
 
     public Optional<Direction> chooseDirection(Room room, Robot robot) {
         CleaningAlgorithm algorithm = robot.getCleaningAlgorithm();
-        if (algorithm == CleaningAlgorithm.RANDOM) {
+        if (algorithm == CleaningAlgorithm.RANDOM) { // Random temizlik seçimi
             return chooseRandom(room, robot);
         }
         if (algorithm == CleaningAlgorithm.WALL_FOLLOW) {
@@ -289,6 +289,8 @@ public class CleaningMovementService {
         return !room.isPassableForCleaning(position) || robot.getCleanedPositions().contains(position);
     }
 
+    // Verilen pozisyon oda sınırına temas ediyor mu kontrol eder.
+    // Komşu hücrelerden biri grid dışındaysa true döner.
     private boolean isRealBoundaryContact(Room room, Position position) {
         for (Direction direction : Direction.values()) {
             if (!room.isInside(position.move(direction))) {
@@ -298,7 +300,12 @@ public class CleaningMovementService {
         return false;
     }
 
-    private Optional<Direction> firstValidDirection(Room room, Position position, List<Direction> candidateDirections) {
+    // Verilen yönler arasında robotun geçebileceği ilk uygun yönü bulur.
+    // Uygun yön bulunursa döner, yoksa boş Optional döner.
+    private Optional<Direction> firstValidDirection(
+            Room room,
+            Position position,
+            List<Direction> candidateDirections) {
         for (Direction direction : candidateDirections) {
             if (room.isPassableForCleaning(position.move(direction))) {
                 return Optional.of(direction);
@@ -307,6 +314,10 @@ public class CleaningMovementService {
         return Optional.empty();
     }
 
+    // ducar takip üzerinede giderken yöneldnirmesini belrliyor robotun ön yüzüne
+    // göre
+    // ilerle sonra sola dön ve revverse ile de üste tırmanıyor gibi 3 2 1 yönünde
+    // düzelmde gidiyor
     private List<Direction> wallFollowDirections(Direction current) {
         return List.of(
                 current.turnRight(),
@@ -315,6 +326,8 @@ public class CleaningMovementService {
                 current.reverse());
     }
 
+    // spiral için mevcut noktadan sağa gidiyor sonra sola ve tkerar reverse ile
+    // yukarı döngü şeklinde alanı büyüterek ilerliyor
     private List<Direction> spiralDirections(Direction current) {
         return List.of(
                 current,
@@ -323,6 +336,8 @@ public class CleaningMovementService {
                 current.reverse());
     }
 
+    // Yönlerinn rastgele olark atnaması için kullandığımız fonksiyon robotoun
+    // konumdan sonra harekt yönlenrini belirliyor
     private List<Direction> shuffledDirections() {
         List<Direction> directions = new ArrayList<>(List.of(Direction.values()));
         for (int i = directions.size() - 1; i > 0; i--) {

@@ -482,7 +482,7 @@ public class SimulationController {
     }
 
     public void tick() {
-        if (shouldAdvanceElapsedTime()) {
+        if (shouldAdvanceElapsedTime()) { // simülasyondaki süreyi ilerletmek için
             elapsedSeconds++;
         }
         SimulationState state = robot.getState();
@@ -568,7 +568,7 @@ public class SimulationController {
     }
 
     private void tickReturning() {
-        List<Position> path = robot.getReturnPath();
+        List<Position> path = robot.getReturnPath();// dönüş yolunu tutuyoruz 
         if (returnPathIndex >= path.size()) {
             robot.setState(SimulationState.CHARGING);
             robot.clearReturnPath();
